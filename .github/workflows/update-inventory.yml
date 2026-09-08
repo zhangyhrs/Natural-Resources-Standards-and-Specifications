@@ -1,0 +1,41 @@
+name: Update inventory
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '标准规范/**'
+      - '法律法规/**'
+      - 'scripts/build_inventory.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-inventory:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build inventory
+        run: python scripts/build_inventory.py
+
+      - name: Commit generated inventory
+        run: |
+          if git diff --quiet -- catalog_auto.csv 文件清单_自动生成.md; then
+            echo "Inventory is already up to date."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add catalog_auto.csv 文件清单_自动生成.md
+          git commit -m "自动更新文件清单"
+          git push

@@ -7,6 +7,7 @@ on:
       - '标准规范/**'
       - '法律法规/**'
       - 'scripts/build_inventory.py'
+      - '.github/workflows/update-inventory.yml'
   workflow_dispatch:
 
 permissions:

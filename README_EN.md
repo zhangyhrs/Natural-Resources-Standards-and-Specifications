@@ -2,7 +2,7 @@
 
 <p align="center">
   <strong>Technical standards · specifications · regulations · reference documents</strong><br/>
-  for natural resources, surveying & mapping, remote sensing, GIS, cadastral surveying and registration.
+  for natural resources survey and monitoring, spatial planning, registration, surveying & mapping, remote sensing and GIS.
 </p>
 
 <p align="center">
@@ -10,32 +10,49 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Natural_Resources-Standards-2E7D32?style=flat-square" />
-  <img src="https://img.shields.io/badge/Surveying_%26_Mapping-Specifications-1565C0?style=flat-square" />
-  <img src="https://img.shields.io/badge/Remote_Sensing-GIS-00838F?style=flat-square" />
-  <img src="https://img.shields.io/badge/Cadastral-Registration-6A1B9A?style=flat-square" />
-  <img src="https://img.shields.io/badge/Policies-Technical_Standards-C77800?style=flat-square" />
+  <img src="https://img.shields.io/badge/Natural_Resources-Technical_Standards-2E7D32?style=flat-square" />
+  <img src="https://img.shields.io/badge/Survey_%26_Monitoring-Registration-1565C0?style=flat-square" />
+  <img src="https://img.shields.io/badge/Surveying_%26_Mapping-Remote_Sensing_GIS-00838F?style=flat-square" />
+  <img src="https://img.shields.io/badge/Spatial_Planning-Ecological_Restoration-6A1B9A?style=flat-square" />
+  <img src="https://img.shields.io/badge/Standards_System-2022-C77800?style=flat-square" />
 </p>
 
 ---
 
 ## 📚 About
 
-This repository maintains **technical standards, specifications, regulations, policies and reference documents** for the natural resources sector, with a focus on natural resources survey and monitoring, cadastral work, real estate and natural resources registration, surveying and mapping, remote sensing and GIS.
+This repository collects and maintains **technical standards, specifications, regulations, policies and reference documents** in the natural resources domain for classification, retrieval, version management and long-term maintenance.
 
-The classification follows the **Natural Resources Standards System (2022)** as the main framework, while surveying and mapping standards are further organized with reference to the **Surveying and Mapping Standards System**.
+The repository is organized according to the **Natural Resources Standards System issued by the Ministry of Natural Resources of China in May 2022**. The top-level folders follow the official classification framework, while lower-level folders are further divided according to the professional scope of the collected standards.
 
 ## 🗂️ Classification
 
-Standards are primarily organized according to natural resources business domains. Surveying and mapping documents are further subdivided into categories such as definition & description, acquisition & processing, inspection & testing, products & services, and management.
+All classified documents are stored under [`标准规范`](./标准规范/). The top-level categories follow the 2022 Natural Resources Standards System:
 
-Processed standards are stored under [`standards`](./standards/), while newly uploaded and unclassified files may first be placed in [`incoming`](./incoming/).
+- `TY1-00 基础通用`
+- `DJ2-00 自然资源调查监测`
+- `GH2-00 国土空间规划`
+- `ZC2-00 自然资源确权登记与权益`
+- `LY2-00 自然资源开发利用`
+- `DC2-00 用途管制与督察执法`
+- `ST2-00 国土空间生态保护与修复`
+- `TD2-00 土地资源`
+- `DZ2-00 地质与矿产资源`
+- `HY2-00 海洋`
+- `XX2-00 自然资源信息化`
+- `CH2-00 测绘地理信息`
+
+The folder codes retain the official classification codes and hierarchy used by the Natural Resources Standards System. Categories with a large number of standards, such as surveying and mapping, are further divided into professional subfolders for easier browsing and management.
 
 ## 🔎 Catalog
 
-The master index is maintained in [`catalog.csv`](./catalog.csv), including the standard number, title, primary and secondary category, status, replacement relationship, file path and source information.
+The master index is maintained in [`catalog.csv`](./catalog.csv), including standard number, title, primary and secondary category, status, supersession relationship, file path, source and notes.
 
-As the library grows, `catalog.csv` should be treated as the primary search and management index.
+As the library grows, `catalog.csv` should be used as the primary search index before browsing the corresponding PDF folders.
+
+## 📥 Incoming Documents
+
+Newly uploaded files that have not yet been classified can be placed in [`待整理`](./待整理/). After checking the official standard number, title and professional category, they can be moved into the formal classification structure.
 
 ## 📝 File Naming
 
@@ -51,24 +68,22 @@ Example:
 TDT 1015.2-2024 地籍数据库 第2部分：自然资源.pdf
 ```
 
-Keep the **official standard number and official title** whenever possible, and remove download-site names, timestamps, repeated spaces and other redundant text.
+Keep the official standard number and official title whenever possible. Avoid download-site names, timestamps, redundant prefixes and other unrelated text.
 
 ## ✅ Maintenance Rules
 
 - One standard/document per PDF whenever possible.
-- Keep official titles and standard numbers unchanged.
-- Do not silently delete revised, abolished or superseded standards; record their status and relationships in `catalog.csv`.
-- Newly uploaded files that have not yet been classified should be placed in `incoming` first.
-- When multiple versions of the same standard exist, preserve their version relationships and identify current, abolished or superseded status.
-- Prefer authoritative official source links whenever available.
+- Keep standard numbers and titles consistent with the officially published text.
+- Classification should primarily follow the 2022 Natural Resources Standards System, with further subdivision where necessary.
+- Revised, abolished or superseded standards should not be silently deleted; their status and relationships should be retained in `catalog.csv`.
+- Uncertain documents should remain in `待整理` until their classification is verified.
+- Prefer authoritative sources such as the Ministry of Natural Resources, official national standard services and relevant standards publishers.
 
 ## ⚠️ Copyright & Disclaimer
 
 This repository is intended for **technical reference, learning and document indexing**. Copyright and distribution rights of individual standards and documents remain with their respective publishers or rights holders.
 
 Public accessibility does not automatically imply unrestricted redistribution rights. When redistribution rights are unclear, only metadata and official source links should be maintained instead of the full PDF.
-
-If any material should not be included here, please open an Issue for review.
 
 ---
 

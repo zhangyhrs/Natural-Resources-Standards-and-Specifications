@@ -1,82 +1,74 @@
-<h1 align="center">Natural Resources Standards & Specifications</h1>
+<h1 align="center">自然资源技术标准规范库</h1>
 
 <p align="center">
-  <strong>Technical standards · specifications · regulations · reference documents</strong><br/>
-  for natural resources, surveying & mapping, remote sensing, GIS, cadastral surveying and registration.
+  <strong>技术标准 · 规范规程 · 政策法规 · 参考资料</strong><br/>
+  面向自然资源、测绘地理信息、遥感、GIS、地籍调查与确权登记等业务领域。
 </p>
 
 <p align="center">
-  <a href="./README.md"><b>🇺🇸 English</b></a> · <a href="./README_CN.md">🇨🇳 中文</a>
+  <a href="./README.md"><b>🇨🇳 中文</b></a> · <a href="./README_EN.md">🇺🇸 English</a>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Natural_Resources-Standards-2E7D32?style=flat-square" />
-  <img src="https://img.shields.io/badge/Surveying_%26_Mapping-Specifications-1565C0?style=flat-square" />
-  <img src="https://img.shields.io/badge/Remote_Sensing-GIS-00838F?style=flat-square" />
-  <img src="https://img.shields.io/badge/Cadastral-Registration-6A1B9A?style=flat-square" />
-  <img src="https://img.shields.io/badge/Policies-Technical_Standards-C77800?style=flat-square" />
+  <img src="https://img.shields.io/badge/自然资源-技术标准-2E7D32?style=flat-square" />
+  <img src="https://img.shields.io/badge/测绘地理信息-规范规程-1565C0?style=flat-square" />
+  <img src="https://img.shields.io/badge/遥感-GIS-00838F?style=flat-square" />
+  <img src="https://img.shields.io/badge/地籍调查-确权登记-6A1B9A?style=flat-square" />
+  <img src="https://img.shields.io/badge/政策法规-技术标准-C77800?style=flat-square" />
 </p>
 
 ---
 
-## 📚 About
+## 📚 仓库简介
 
-This repository is a curated library of **technical standards, specifications, regulations and reference documents** related to the natural resources sector. It is intended for convenient classification, retrieval and long-term maintenance of documents used in surveying, mapping, cadastral work, registration, remote sensing, GIS and related engineering workflows.
+本仓库用于整理和维护 **自然资源领域技术标准、规范规程、政策法规及相关参考资料**，重点服务自然资源调查监测、地籍调查、不动产与自然资源确权登记、测绘地理信息、遥感、GIS 等业务场景。
 
-Documents are organized by professional field rather than by source organization, so standards from different systems and structures can be maintained in one consistent library.
+仓库分类以《自然资源标准体系（2022）》为主框架，并结合《测绘标准体系》对测绘地理信息类标准进一步细分，便于统一管理不同来源、不同结构和不同标准体系的文件。
 
-## 🗂️ Categories
+## 🗂️ 分类体系
 
-| Category | Scope | Folder |
-|---|---|---|
-| General | Basic, common and cross-domain standards | [`standards/01-General`](./standards/01-General/) |
-| Survey & Monitoring | Natural resources survey, monitoring and investigation | [`standards/02-Survey-Monitoring`](./standards/02-Survey-Monitoring/) |
-| Cadastral & Registration | Cadastral surveying, real estate and natural resources registration | [`standards/03-Cadastral-Registration`](./standards/03-Cadastral-Registration/) |
-| Surveying & Mapping | Geodesy, photogrammetry, engineering surveying and mapping | [`standards/04-Surveying-Mapping`](./standards/04-Surveying-Mapping/) |
-| Remote Sensing & GIS | Remote sensing, GIS, spatial data and databases | [`standards/05-Remote-Sensing-GIS`](./standards/05-Remote-Sensing-GIS/) |
-| Land & Spatial Planning | Land use, cultivated land, spatial planning and use control | [`standards/06-Land-Spatial-Planning`](./standards/06-Land-Spatial-Planning/) |
-| Ecology & Natural Assets | Forest, grassland, wetland, ecology and natural-resource assets | [`standards/07-Ecology-Natural-Assets`](./standards/07-Ecology-Natural-Assets/) |
-| Geology & Minerals | Geology, mineral resources and related technical standards | [`standards/08-Geology-Minerals`](./standards/08-Geology-Minerals/) |
-| Other | Documents not yet assigned to the categories above | [`standards/99-Other`](./standards/99-Other/) |
+标准库以自然资源业务体系为主，并对测绘地理信息类标准按“定义与描述、获取与处理、检验与测试、成果与服务、管理”等类别继续细分。
 
-## 🔎 Catalog
+当前已整理的标准统一放置于 [`standards`](./standards/) 目录中；新增未整理文件可先上传到 [`incoming`](./incoming/) 目录。
 
-The master catalog is maintained in [`catalog.csv`](./catalog.csv). It records the standard number, title, category, status, dates, replacement relationship, file path and source information.
+## 🔎 标准目录
 
-When the library grows, the catalog should be treated as the primary index rather than relying only on folder browsing.
+仓库总目录统一维护在 [`catalog.csv`](./catalog.csv) 中，用于记录标准号、标准名称、一级分类、二级分类、标准状态、替代关系、文件路径及来源等信息。
 
-## 📝 File Naming
+随着标准数量增加，建议优先通过 `catalog.csv` 进行检索和管理，而不是仅依赖文件夹浏览。
 
-Recommended naming format:
+## 📝 文件命名
+
+统一采用：
 
 ```text
-StandardNo StandardTitle.pdf
+标准号 标准名称.pdf
 ```
 
-Example:
+例如：
 
 ```text
 TDT 1015.2-2024 地籍数据库 第2部分：自然资源.pdf
 ```
 
-Keep the **official standard number and official title** whenever possible. Avoid adding unrelated download-site names, timestamps or redundant prefixes to filenames.
+原则上保留 **正式标准号 + 正式标准名称**，删除无关下载站名称、时间戳、重复空格和其他冗余信息。
 
-## ✅ Maintenance Rules
+## ✅ 维护规则
 
-- One standard/document per PDF file whenever possible.
-- Keep official titles and standard numbers unchanged.
-- Record revised, abolished or replaced standards in `catalog.csv` instead of silently deleting historical records.
-- Put uncertain documents in `99-Other` first, then reclassify them after verification.
-- Prefer authoritative or official source links in the catalog.
-- Large batches of PDFs should be checked for duplicate files, inconsistent names and version conflicts before merging.
+- 原则上一份标准对应一个 PDF 文件。
+- 标准号、名称尽量保持官方正式写法。
+- 对修订、废止、被替代的标准，不直接删除历史记录，应在 `catalog.csv` 中标记状态和替代关系。
+- 新上传且暂未分类的文件统一放入 `incoming`，核实后再移动至正式目录。
+- 同一标准存在不同版本时，保留版本关系并在目录中注明现行、废止或被替代状态。
+- 来源链接优先采用政府部门、标准发布机构及其他权威来源。
 
-## ⚠️ Copyright & Disclaimer
+## ⚠️ 版权与免责声明
 
-This repository is intended for **technical reference, learning and document indexing**. Copyright and distribution rights of individual standards and documents remain with their respective publishers or rights holders.
+本仓库主要用于 **技术学习、资料索引和标准规范整理**。各标准、规范及相关文件的著作权和传播权归原发布机构或权利人所有。
 
-A document being publicly accessible does not necessarily mean it may be freely redistributed. When redistribution rights are unclear, maintain only the document metadata and official source link rather than uploading the full PDF.
+文件能够公开获取并不当然意味着可以自由转载或再次分发。对于传播权限不明确的文件，建议仅维护标准元数据和官方来源链接，不直接上传完整 PDF。
 
-If any material should not be included here, please open an issue for review and removal.
+如仓库中的有关资料存在版权、有效性或其他问题，可通过 Issue 提交说明并进行核查处理。
 
 ---
 

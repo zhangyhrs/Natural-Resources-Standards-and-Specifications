@@ -4,9 +4,26 @@
 
 <p align="center"><a href="./README.md"><b>🇨🇳 中文</b></a> · <a href="./README_EN.md">🇺🇸 English</a></p>
 
+<p align="center">
+  <a href="./标准目录.md"><b>📋 标准列表</b></a> ·
+  <a href="https://github.com/zhangyhrs/Natural-Resources-Standards-and-Specifications/search"><b>🔍 仓库检索</b></a> ·
+  <a href="./标准规范/"><b>📁 分类目录</b></a> ·
+  <a href="./catalog.csv"><b>📊 CSV 索引</b></a>
+</p>
+
 ## 📚 仓库简介
 
 本仓库用于整理和维护自然资源领域技术标准、规范规程、政策法规及相关参考资料，按照自然资源部2022年5月发布的《自然资源标准体系》组织，并结合实际文件管理需要进行专业细分。
+
+## 🔎 快速查找
+
+为减少逐层进入文件夹查找的操作，仓库提供三种方式：
+
+- **标准列表**：进入 [`标准目录.md`](./标准目录.md)，按分类折叠/展开浏览，并可直接点击标准名称打开 PDF。
+- **仓库检索**：使用 GitHub 仓库搜索，可按标准号或标准名称检索。
+- **CSV 索引**：通过 [`catalog.csv`](./catalog.csv) 进行结构化查询、筛选和后续维护。
+
+在 `标准目录.md` 页面也可以直接使用浏览器 `Ctrl + F` 搜索标准号或名称。
 
 ## 🗂️ 分类体系
 
@@ -41,11 +58,7 @@ CHT 1001-2005 测绘技术总结编写规定.pdf
 DZT 0484-2024 遥感地质术语.pdf
 ```
 
-文件名中不使用斜杠；在 `catalog.csv`、README 或其他索引中如需记录正式标准号，可写为 `GB/T`、`CH/T`、`DZ/T` 等官方形式。
-
-## 🔎 标准目录
-
-仓库总目录统一维护在 [`catalog.csv`](./catalog.csv) 中，可记录标准号、标准名称、分类、现行状态、替代关系、文件路径及来源等信息。
+文件名中不使用斜杠；在标准列表、`catalog.csv` 或其他索引中按正式标准号 `GB/T`、`CH/T`、`DZ/T` 等展示。
 
 ## 📥 待整理文件
 

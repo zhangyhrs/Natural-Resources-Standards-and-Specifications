@@ -134,17 +134,24 @@ def looks_legal(filename: str) -> bool:
     stem = Path(filename).stem
     if STANDARD_PREFIX_RE.search(stem):
         return False
-    legal_hits = sum(1 for k in LEGAL_HINTS if k in stem)
-    tech_hits = sum(1 for k in TECH_HINTS if k in stem)
+    core = re.sub(r"[_\-\s]?\d{8}$", "", stem).strip()
+    # 明确的法律法规名称优先于专业关键词，避免“冰川保护条例”等误归技术标准。
+    if core.endswith("法") or core.endswith("条例"):
+        return True
+    if "实施" in core and "办法" in core and "法" in core:
+        return True
+    legal_hits = sum(1 for k in LEGAL_HINTS if k in core)
+    tech_hits = sum(1 for k in TECH_HINTS if k in core)
     return legal_hits >= 2 and legal_hits > tech_hits
 
 
 def decide(filename: str) -> Decision:
+    # 法律法规识别必须先于专业技术关键词分类。
+    if looks_legal(filename):
+        return Decision("法律法规待确认", None, 90, "明确法律法规名称；优先进入人工确认，避免误归技术标准")
     std = classify_standard(filename)
     if std:
         return std
-    if looks_legal(filename):
-        return Decision("法律法规待确认", None, 70, "疑似法律法规；现阶段保守进入人工确认，避免效力层级误判")
     return Decision("待确认", None, 50, "缺少足够明确的自动分类依据")
 
 

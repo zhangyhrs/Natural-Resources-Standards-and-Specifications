@@ -51,6 +51,11 @@ def repo_blob_url(rel: Path) -> str:
     return f"https://github.com/zhangyhrs/Natural-Resources-Standards-and-Specifications/blob/main/{encoded}"
 
 
+def repo_raw_url(rel: Path) -> str:
+    encoded = "/".join(quote(part) for part in rel.parts)
+    return f"https://raw.githubusercontent.com/zhangyhrs/Natural-Resources-Standards-and-Specifications/main/{encoded}"
+
+
 def standard_level(prefix: str) -> str:
     p = prefix.replace("_", "").upper()
     if p.startswith("GB"):
@@ -74,7 +79,6 @@ def parse_standard(path: Path) -> dict | None:
         return None
     prefix = m.group("prefix").replace("_", "")
     title = m.group("title").strip()
-    official_prefix = prefix
     replacements = {"GBT": "GB/T", "CHT": "CH/T", "CHZ": "CH/Z", "DZT": "DZ/T", "TDT": "TD/T", "LYT": "LY/T", "NYT": "NY/T", "CJJT": "CJJ/T"}
     official_prefix = replacements.get(prefix, prefix)
     std_no = f"{official_prefix} {m.group('number')}-{m.group('year')}"
@@ -92,6 +96,7 @@ def parse_standard(path: Path) -> dict | None:
         "年份": m.group("year"),
         "文件名": path.name,
         "链接": repo_blob_url(rel),
+        "下载": repo_raw_url(rel),
     }
 
 
@@ -126,6 +131,7 @@ def build_laws() -> list[dict]:
             "发布机关": m.group("issuer").strip(),
             "标签": m.group("tag").strip(),
             "链接": repo_blob_url(rel),
+            "下载": repo_raw_url(rel),
         })
     return laws
 

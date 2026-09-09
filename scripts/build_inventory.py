@@ -10,24 +10,17 @@ ROOT = Path(__file__).resolve().parents[1]
 TARGET_DIRS = [ROOT / "标准规范", ROOT / "法律法规"]
 OUT_CSV = ROOT / "catalog_auto.csv"
 OUT_MD = ROOT / "文件清单_自动生成.md"
-OUT_JSON = ROOT / "docs" / "standards.json"
+DOCS_DIR = ROOT / "docs"
+STANDARDS_JSON = DOCS_DIR / "standards.json"
+LAWS_JSON = DOCS_DIR / "laws.json"
+LEGAL_INDEX = ROOT / "法律法规索引.md"
 
 ALLOWED_SUFFIXES = {".pdf", ".doc", ".docx", ".xls", ".xlsx", ".txt", ".md"}
-STANDARD_SUFFIXES = {".pdf", ".doc", ".docx"}
-
-PREFIX_MAP = {
-    "GBT": "GB/T",
-    "GBZ": "GB/Z",
-    "GB": "GB",
-    "CHT": "CH/T",
-    "CHZ": "CH/Z",
-    "CJJT": "CJJ/T",
-    "DZT": "DZ/T",
-    "TDT": "TD/T",
-    "LYT": "LY/T",
-    "NYT": "NY/T",
-    "HYT": "HY/T",
-}
+STANDARD_RE = re.compile(r"^(?P<prefix>[A-Z]+(?:\.?[A-Z]+)?)\s*(?P<number>\d+(?:\.\d+)?)\s*[-—]\s*(?P<year>\d{4})\s*(?P<title>.*)$")
+LEGAL_ITEM_RE = re.compile(
+    r"^- \[(?P<title>.+?)\]\((?P<path>.+?)\)\s*·\s*`(?P<date>[^`]*)`\s*·\s*`(?P<issuer>[^`]*)`\s*·\s*`(?P<tag>[^`]*)`"
+)
+SUMMARY_RE = re.compile(r"<summary><b>(?P<level>\d{2}\s+[^<]+)</b></summary>")
 
 
 def iter_files():
@@ -53,89 +46,111 @@ def github_link(rel: Path) -> str:
     return "./" + "/".join(quote(part) for part in rel.parts)
 
 
-def parse_standard_name(filename: str) -> dict[str, str]:
-    stem = Path(filename).stem.strip()
-    stem = re.sub(r"\s+", " ", stem)
-    m = re.match(r"^(GB_T|GBT|GBZ|GB|CHT|CHZ|CJJT|DZT|TDT|LYT|NYT|HYT)\s*([0-9]+(?:\.[0-9]+)?)-([0-9]{4})\s*(.*)$", stem, re.I)
+def repo_blob_url(rel: Path) -> str:
+    encoded = "/".join(quote(part) for part in rel.parts)
+    return f"https://github.com/zhangyhrs/Natural-Resources-Standards-and-Specifications/blob/main/{encoded}"
+
+
+def standard_level(prefix: str) -> str:
+    p = prefix.replace("_", "").upper()
+    if p.startswith("GB"):
+        return "国家标准"
+    return "行业标准"
+
+
+def standard_nature(prefix: str) -> str:
+    p = prefix.replace("_", "").upper()
+    if p in {"GB", "GBT"}:
+        return "强制性" if p == "GB" else "推荐性"
+    if p.endswith("Z"):
+        return "指导性技术文件"
+    return "推荐性"
+
+
+def parse_standard(path: Path) -> dict | None:
+    stem = path.stem.strip().replace("  ", " ")
+    m = STANDARD_RE.match(stem)
     if not m:
-        return {"标准号": "", "标准名称": stem, "年份": "", "标准层级": "其他", "标准性质": "其他"}
-
-    raw_prefix = m.group(1).upper().replace("_", "")
-    number = m.group(2)
-    year = m.group(3)
-    title = m.group(4).strip(" -_")
-    formal_prefix = PREFIX_MAP.get(raw_prefix, raw_prefix)
-    std_no = f"{formal_prefix} {number}-{year}"
-
-    if raw_prefix in {"GB", "GBT", "GBZ"}:
-        level = "国家标准"
-    elif raw_prefix in {"CHT", "CHZ", "CJJT", "DZT", "TDT", "LYT", "NYT", "HYT"}:
-        level = "行业标准"
-    else:
-        level = "其他"
-
-    if raw_prefix == "GB":
-        nature = "强制性"
-    elif raw_prefix in {"GBZ", "CHZ"}:
-        nature = "指导性技术文件"
-    elif raw_prefix.endswith("T"):
-        nature = "推荐性"
-    else:
-        nature = "其他"
-
-    return {"标准号": std_no, "标准名称": title or stem, "年份": year, "标准层级": level, "标准性质": nature}
+        return None
+    prefix = m.group("prefix").replace("_", "")
+    title = m.group("title").strip()
+    official_prefix = prefix
+    replacements = {"GBT": "GB/T", "CHT": "CH/T", "CHZ": "CH/Z", "DZT": "DZ/T", "TDT": "TD/T", "LYT": "LY/T", "NYT": "NY/T", "CJJT": "CJJ/T"}
+    official_prefix = replacements.get(prefix, prefix)
+    std_no = f"{official_prefix} {m.group('number')}-{m.group('year')}"
+    rel = path.relative_to(ROOT)
+    parts = rel.parts
+    system = parts[1] if len(parts) > 2 else "未分类"
+    domain = " / ".join(parts[2:-1]) if len(parts) > 3 else "未分类"
+    return {
+        "标准号": std_no,
+        "标准名称": title or stem,
+        "标准层级": standard_level(prefix),
+        "标准性质": standard_nature(prefix),
+        "标准体系": system,
+        "专业分类": domain or "未分类",
+        "年份": m.group("year"),
+        "文件名": path.name,
+        "链接": repo_blob_url(rel),
+    }
 
 
-def build_standards_json() -> list[dict[str, str]]:
-    items: list[dict[str, str]] = []
-    standards_root = ROOT / "标准规范"
-    if not standards_root.exists():
-        return items
-
-    for path in sorted(standards_root.rglob("*"), key=lambda p: p.as_posix().lower()):
-        if not path.is_file() or path.suffix.lower() not in STANDARD_SUFFIXES:
+def build_laws() -> list[dict]:
+    if not LEGAL_INDEX.exists():
+        return []
+    laws = []
+    current_level = "未分类"
+    current_domain = "未分类"
+    for raw in LEGAL_INDEX.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        m = SUMMARY_RE.search(line)
+        if m:
+            current_level = m.group("level").strip()
+            current_domain = "未分类"
             continue
-        rel = path.relative_to(ROOT)
-        parts = rel.parts
-        system = parts[1] if len(parts) > 2 else "未分类"
-        domain_parts = [p for p in parts[2:-1] if p]
-        domain = " / ".join(domain_parts) if domain_parts else "未分类"
-        parsed = parse_standard_name(path.name)
-        repo_url = "https://github.com/zhangyhrs/Natural-Resources-Standards-and-Specifications/blob/main/" + "/".join(quote(p) for p in rel.parts)
-        items.append(
-            {
-                **parsed,
-                "标准体系": system,
-                "专业分类": domain,
-                "文件名": path.name,
-                "文件路径": rel.as_posix(),
-                "链接": repo_url,
-            }
-        )
-    return items
+        if line.startswith("### "):
+            current_domain = line[4:].strip()
+            continue
+        m = LEGAL_ITEM_RE.match(line)
+        if not m:
+            continue
+        path_text = m.group("path").replace("%20", " ")
+        if path_text.startswith("./"):
+            path_text = path_text[2:]
+        rel = Path(path_text)
+        laws.append({
+            "名称": m.group("title").strip(),
+            "效力层级": current_level,
+            "业务领域或地区": current_domain,
+            "日期": m.group("date").strip(),
+            "发布机关": m.group("issuer").strip(),
+            "标签": m.group("tag").strip(),
+            "链接": repo_blob_url(rel),
+        })
+    return laws
 
 
 def main():
     rows = []
+    standards = []
     for path in iter_files():
         source_type, level1, level2, level3, rel = classify(path)
-        rows.append(
-            {
-                "资料类型": source_type,
-                "一级分类": level1,
-                "二级分类": level2,
-                "三级分类": level3,
-                "文件名": path.name,
-                "扩展名": path.suffix.lower(),
-                "相对路径": rel.as_posix(),
-            }
-        )
+        rows.append({
+            "资料类型": source_type,
+            "一级分类": level1,
+            "二级分类": level2,
+            "三级分类": level3,
+            "文件名": path.name,
+            "扩展名": path.suffix.lower(),
+            "相对路径": rel.as_posix(),
+        })
+        if source_type == "标准规范":
+            item = parse_standard(path)
+            if item:
+                standards.append(item)
 
     with OUT_CSV.open("w", encoding="utf-8-sig", newline="") as f:
-        writer = csv.DictWriter(
-            f,
-            fieldnames=["资料类型", "一级分类", "二级分类", "三级分类", "文件名", "扩展名", "相对路径"],
-        )
+        writer = csv.DictWriter(f, fieldnames=["资料类型", "一级分类", "二级分类", "三级分类", "文件名", "扩展名", "相对路径"])
         writer.writeheader()
         writer.writerows(rows)
 
@@ -169,12 +184,11 @@ def main():
             lines.append("")
 
     OUT_MD.write_text("\n".join(lines), encoding="utf-8")
-
-    OUT_JSON.parent.mkdir(parents=True, exist_ok=True)
-    standards = build_standards_json()
-    OUT_JSON.write_text(json.dumps(standards, ensure_ascii=False, indent=2), encoding="utf-8")
-
-    print(f"Generated {OUT_CSV.name}, {OUT_MD.name} and {OUT_JSON.relative_to(ROOT)}: {len(rows)} files / {len(standards)} standards")
+    DOCS_DIR.mkdir(exist_ok=True)
+    STANDARDS_JSON.write_text(json.dumps(standards, ensure_ascii=False, indent=2), encoding="utf-8")
+    laws = build_laws()
+    LAWS_JSON.write_text(json.dumps(laws, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"Generated {OUT_CSV.name}, {OUT_MD.name}, docs/standards.json and docs/laws.json: {len(rows)} files / {len(standards)} standards / {len(laws)} laws")
 
 
 if __name__ == "__main__":

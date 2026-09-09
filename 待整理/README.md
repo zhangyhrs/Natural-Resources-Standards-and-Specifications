@@ -1,11 +1,13 @@
-# Incoming Standards
+# 待整理
 
-Temporary upload area for newly collected standard PDF files.
+该目录用于临时接收新上传但尚未完成核验、分类或重复检查的资料。
 
-Please upload original PDF files here without renaming or manual classification. After upload, the files can be reviewed, standardized, classified, and moved into the appropriate folders under `standards/`.
+新资料可先直接放入本目录，无需提前整理。后续统一进行标准号识别、文件命名规范化、标准层级判断、专业分类、版本核查和重复检查，确认后再移入 `标准规范` 或其他正式目录。
 
-## 上传说明
+目前原则上仅保留需要进一步人工判断的资料，例如：
 
-该目录用于临时接收新收集的标准 PDF 文件。
+- **疑似重复**：同一标准存在不同扫描版、不同来源版或内容差异，不能仅凭文件名直接删除；
+- **待核版本**：标准号、年份、修订关系或文件版本尚需核实；
+- **其他待核资料**：没有标准号、征求意见稿、草案、试行稿等需要确认资料属性的文件。
 
-请直接上传原始 PDF，无需提前改名、分类或整理。后续可统一进行标准号识别、文件命名规范化、专业分类、重复检查，并移动至 `standards/` 下对应目录。
+已确认的正式标准应及时移出本目录，避免“待整理”长期堆积。

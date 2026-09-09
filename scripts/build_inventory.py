@@ -68,7 +68,7 @@ def clean_prefix(prefix: str) -> str:
 
 def standard_level(prefix: str | None) -> str:
     if not prefix:
-        return "未识别"
+        return "其他资料"
     p = clean_prefix(prefix)
     if p.startswith("GB"):
         return "国家标准"
@@ -155,7 +155,7 @@ def parse_standard(path: Path) -> dict:
         std_no = "—"
         year_match = re.search(r"(?<!\d)(19|20)\d{2}(?!\d)", stem)
         year = year_match.group(0) if year_match else ""
-        level = "未识别"
+        level = "其他资料"
         nature = "未标注"
         status = material_status(stem, False)
 

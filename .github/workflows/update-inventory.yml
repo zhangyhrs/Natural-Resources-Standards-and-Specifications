@@ -6,6 +6,7 @@ on:
     paths:
       - '标准规范/**'
       - '法律法规/**'
+      - '法律法规索引.md'
       - 'scripts/build_inventory.py'
       - '.github/workflows/update-inventory.yml'
   workflow_dispatch:
@@ -26,17 +27,17 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Build inventory
+      - name: Build inventory and search data
         run: python scripts/build_inventory.py
 
-      - name: Commit generated inventory
+      - name: Commit generated inventory and search data
         run: |
-          if git diff --quiet -- catalog_auto.csv 文件清单_自动生成.md; then
-            echo "Inventory is already up to date."
+          if git diff --quiet -- catalog_auto.csv 文件清单_自动生成.md docs/standards.json docs/laws.json; then
+            echo "Inventory and search data are already up to date."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add catalog_auto.csv 文件清单_自动生成.md
-          git commit -m "自动更新文件清单"
+          git add catalog_auto.csv 文件清单_自动生成.md docs/standards.json docs/laws.json
+          git commit -m "自动更新文件清单与检索数据"
           git push

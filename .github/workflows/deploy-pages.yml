@@ -36,6 +36,22 @@ jobs:
       - name: Build search data
         run: python scripts/build_inventory.py
 
+      - name: Add cache-busting to search data requests
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import os
+          sha = os.environ.get('GITHUB_SHA', 'latest')[:12]
+          for file_name, data_name in [('index.html', 'standards.json'), ('laws.html', 'laws.json')]:
+              p = Path('docs') / file_name
+              text = p.read_text(encoding='utf-8')
+              text = text.replace(
+                  f"fetch('./{data_name}')",
+                  f"fetch('./{data_name}?v={sha}', {{cache:'no-store'}})"
+              )
+              p.write_text(text, encoding='utf-8')
+          PY
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:

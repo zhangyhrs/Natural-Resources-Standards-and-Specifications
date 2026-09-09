@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>自然资源技术标准检索</title>
+  <style>
+    :root{--blue:#2f67b2;--green:#45a787;--text:#243447;--muted:#6b7b8c;--line:#dfe6ee;--bg:#f4f7fb;--panel:#fff}
+    *{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",Arial,sans-serif;background:var(--bg);color:var(--text)}
+    .top{background:linear-gradient(90deg,#2c5fa6,#3a73bf);color:#fff;padding:0 22px}.top-inner{max-width:1200px;margin:auto;display:flex;align-items:center;justify-content:space-between;height:64px}.brand{font-size:20px;font-weight:700}.links a{color:#fff;text-decoration:none;margin-left:22px;font-size:14px}
+    .wrap{max-width:1200px;margin:24px auto;padding:0 18px}.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:0 2px 8px rgba(31,54,78,.05);padding:22px}
+    .search-row{display:flex;gap:0;margin-bottom:20px}.search-row input{flex:1;height:44px;border:1px solid #cbd5e1;border-right:none;border-radius:6px 0 0 6px;padding:0 14px;font-size:15px;outline:none}.search-row button{width:96px;border:none;background:var(--blue);color:#fff;border-radius:0 6px 6px 0;font-size:15px;cursor:pointer}
+    .filter-row{display:grid;grid-template-columns:110px 1fr;gap:10px;padding:11px 0;border-top:1px dashed #e5e9ef}.filter-row:first-of-type{border-top:none}.label{font-weight:700;color:#fff;background:#7d8b8f;border-radius:4px;padding:5px 10px;display:inline-block;width:max-content;height:max-content}.opts{display:flex;flex-wrap:wrap;gap:8px 12px}.chip{border:0;background:transparent;padding:5px 9px;border-radius:4px;cursor:pointer;color:#333;font-size:14px}.chip.active{background:var(--green);color:white}.chip:hover{background:#eef4f7}.chip.active:hover{background:var(--green)}
+    .toolbar{display:flex;justify-content:space-between;align-items:center;margin:20px 0 10px}.count{color:var(--muted);font-size:14px}.reset{border:1px solid #cbd5e1;background:#fff;border-radius:5px;padding:7px 12px;cursor:pointer}
+    .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:6px}table{width:100%;border-collapse:collapse;min-width:900px}th,td{padding:12px 10px;border-bottom:1px solid var(--line);font-size:14px;text-align:left}th{background:#f7f9fc;white-space:nowrap}tr:hover td{background:#fbfdff}.stdno{font-weight:600;white-space:nowrap}.title a{color:#245da8;text-decoration:none}.title a:hover{text-decoration:underline}.tag{display:inline-block;background:#eef4f7;color:#50606d;border-radius:4px;padding:2px 6px;font-size:12px}.empty{text-align:center;padding:48px;color:#788898}
+    .pagination{display:flex;justify-content:center;gap:6px;margin-top:16px}.pagination button{min-width:34px;height:34px;border:1px solid #ccd6e1;background:#fff;border-radius:4px;cursor:pointer}.pagination button.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+    .note{margin-top:14px;font-size:13px;color:#7b8794;line-height:1.7}.footer{text-align:center;color:#8b98a6;font-size:13px;padding:28px}
+    @media(max-width:760px){.top-inner{height:auto;padding:14px 0;display:block}.links{margin-top:8px}.links a{margin:0 16px 0 0}.filter-row{grid-template-columns:1fr}.search-row button{width:76px}}
+  </style>
+</head>
+<body>
+  <div class="top"><div class="top-inner"><div class="brand">自然资源技术标准检索</div><div class="links"><a href="../">仓库首页</a><a href="../标准目录.md">标准目录</a><a href="../常用资料速查.md">常用速查</a></div></div></div>
+  <main class="wrap"><section class="card">
+    <div class="search-row"><input id="q" placeholder="请输入标准名称、标准号或关键词，如：18314、地籍调查、GNSS" /><button id="searchBtn">🔍 查询</button></div>
+
+    <div class="filter-row"><div><span class="label">标准层级</span></div><div class="opts" id="levelOpts"></div></div>
+    <div class="filter-row"><div><span class="label">标准性质</span></div><div class="opts" id="natureOpts"></div></div>
+    <div class="filter-row"><div><span class="label">标准体系</span></div><div class="opts" id="systemOpts"></div></div>
+    <div class="filter-row"><div><span class="label">专业分类</span></div><div class="opts" id="domainOpts"></div></div>
+
+    <div class="toolbar"><div class="count" id="count">正在读取标准数据……</div><button class="reset" id="resetBtn">重置筛选</button></div>
+    <div class="table-wrap"><table><thead><tr><th>序号</th><th>标准号</th><th>标准名称</th><th>标准层级</th><th>标准性质</th><th>标准体系</th><th>专业分类</th><th>年份</th></tr></thead><tbody id="tbody"></tbody></table></div>
+    <div class="pagination" id="pager"></div>
+    <div class="note">说明：本页面检索数据由仓库目录自动生成，仅反映本仓库当前已收录文件。标准现行状态、发布日期、实施日期等信息后续逐步补充，具体以官方标准信息为准。</div>
+  </section></main>
+  <div class="footer">Natural-Resources-Standards-and-Specifications · 持续更新</div>
+
+<script>
+const PAGE_SIZE=25;
+let all=[], filtered=[], page=1;
+const state={level:'全部',nature:'全部',system:'全部',domain:'全部'};
+const $=id=>document.getElementById(id);
+
+function uniq(field){return [...new Set(all.map(x=>x[field]).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh-CN'));}
+function renderOptions(id, field, values){
+  const el=$(id); el.innerHTML='';
+  ['全部',...values].forEach(v=>{const b=document.createElement('button');b.className='chip'+(state[field]===v?' active':'');b.textContent=v;b.onclick=()=>{state[field]=v;page=1;renderAllOptions();apply();};el.appendChild(b);});
+}
+function renderAllOptions(){
+  renderOptions('levelOpts','level',uniq('标准层级'));
+  renderOptions('natureOpts','nature',uniq('标准性质'));
+  renderOptions('systemOpts','system',uniq('标准体系'));
+  let domains=uniq('专业分类');
+  if(state.system!=='全部') domains=[...new Set(all.filter(x=>x['标准体系']===state.system).map(x=>x['专业分类']).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh-CN'));
+  if(state.domain!=='全部'&&!domains.includes(state.domain)) state.domain='全部';
+  renderOptions('domainOpts','domain',domains);
+}
+function norm(s){return (s||'').toLowerCase().replace(/\s+/g,'');}
+function apply(){
+  const q=norm($('q').value);
+  filtered=all.filter(x=>{
+    const text=norm([x['标准号'],x['标准名称'],x['文件名'],x['标准体系'],x['专业分类']].join(' '));
+    return (!q||text.includes(q))
+      &&(state.level==='全部'||x['标准层级']===state.level)
+      &&(state.nature==='全部'||x['标准性质']===state.nature)
+      &&(state.system==='全部'||x['标准体系']===state.system)
+      &&(state.domain==='全部'||x['专业分类']===state.domain);
+  });
+  page=Math.min(page,Math.max(1,Math.ceil(filtered.length/PAGE_SIZE))); renderTable(); renderPager();
+}
+function renderTable(){
+  $('count').textContent=`共收录 ${all.length} 项，当前筛选 ${filtered.length} 项`;
+  const body=$('tbody'); body.innerHTML='';
+  const start=(page-1)*PAGE_SIZE, rows=filtered.slice(start,start+PAGE_SIZE);
+  if(!rows.length){body.innerHTML='<tr><td colspan="8" class="empty">没有找到符合条件的标准</td></tr>';return;}
+  rows.forEach((x,i)=>{const tr=document.createElement('tr');tr.innerHTML=`<td>${start+i+1}</td><td class="stdno">${x['标准号']||'-'}</td><td class="title"><a href="${x['链接']}" target="_blank" rel="noopener">${x['标准名称']}</a></td><td><span class="tag">${x['标准层级']}</span></td><td>${x['标准性质']}</td><td>${x['标准体系']}</td><td>${x['专业分类']}</td><td>${x['年份']||'-'}</td>`;body.appendChild(tr);});
+}
+function renderPager(){
+  const pages=Math.ceil(filtered.length/PAGE_SIZE), el=$('pager');el.innerHTML='';if(pages<=1)return;
+  const add=(txt,p,active=false)=>{const b=document.createElement('button');b.textContent=txt;b.className=active?'active':'';b.disabled=p<1||p>pages;b.onclick=()=>{page=p;renderTable();renderPager();window.scrollTo({top:0,behavior:'smooth'});};el.appendChild(b);};
+  add('‹',page-1); const s=Math.max(1,page-2),e=Math.min(pages,page+2); for(let p=s;p<=e;p++)add(p,p,p===page); add('›',page+1);
+}
+function reset(){state.level=state.nature=state.system=state.domain='全部';$('q').value='';page=1;renderAllOptions();apply();}
+
+$('searchBtn').onclick=()=>{page=1;apply();}; $('q').addEventListener('keydown',e=>{if(e.key==='Enter'){page=1;apply();}}); $('q').addEventListener('input',()=>{page=1;apply();}); $('resetBtn').onclick=reset;
+
+fetch('./standards.json').then(r=>{if(!r.ok)throw new Error('数据文件不存在');return r.json();}).then(data=>{all=data;filtered=data;renderAllOptions();apply();}).catch(err=>{$('count').textContent='标准数据加载失败：'+err.message;$('tbody').innerHTML='<tr><td colspan="8" class="empty">请稍后刷新页面，或返回 GitHub 仓库使用标准目录。</td></tr>';});
+</script>
+</body>
+</html>

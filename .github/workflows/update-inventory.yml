@@ -32,12 +32,15 @@ jobs:
 
       - name: Commit generated inventory and search data
         run: |
-          if git diff --quiet -- catalog_auto.csv 文件清单_自动生成.md docs/standards.json docs/laws.json; then
-            echo "Inventory and search data are already up to date."
-            exit 0
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
           git add catalog_auto.csv 文件清单_自动生成.md docs/standards.json docs/laws.json
-          git commit -m "自动更新文件清单与检索数据"
+
+          if git diff --cached --quiet; then
+            echo "Generated inventory and search data are already up to date."
+            exit 0
+          fi
+
+          git commit -m "自动更新检索数据与文件清单"
           git push

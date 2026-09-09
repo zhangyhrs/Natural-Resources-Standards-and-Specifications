@@ -16,11 +16,17 @@ LAWS_JSON = DOCS_DIR / "laws.json"
 LEGAL_INDEX = ROOT / "法律法规索引.md"
 
 ALLOWED_SUFFIXES = {".pdf", ".doc", ".docx", ".xls", ".xlsx", ".txt", ".md"}
-STANDARD_RE = re.compile(r"^(?P<prefix>[A-Z]+(?:\.?[A-Z]+)?)\s*(?P<number>\d+(?:\.\d+)?)\s*[-—]\s*(?P<year>\d{4})\s*(?P<title>.*)$")
+STANDARD_RE = re.compile(
+    r"^(?P<prefix>[A-Z][A-Z0-9._-]*)\s*(?P<number>\d+(?:\.\d+)?)\s*[-—]\s*(?P<year>\d{4})\s*(?P<title>.*)$"
+)
 LEGAL_ITEM_RE = re.compile(
     r"^- \[(?P<title>.+?)\]\((?P<path>.+?)\)\s*·\s*`(?P<date>[^`]*)`\s*·\s*`(?P<issuer>[^`]*)`\s*·\s*`(?P<tag>[^`]*)`"
 )
 SUMMARY_RE = re.compile(r"<summary><b>(?P<level>\d{2}\s+[^<]+)</b></summary>")
+
+INDUSTRY_PREFIXES = (
+    "CH", "DZ", "TD", "LY", "NY", "HY", "SL", "CJJ", "JGJ", "JTG", "NB", "HJ", "MH", "WS", "AQ", "JC", "DBJ"
+)
 
 
 def iter_files():
@@ -56,44 +62,112 @@ def repo_raw_url(rel: Path) -> str:
     return f"https://raw.githubusercontent.com/zhangyhrs/Natural-Resources-Standards-and-Specifications/main/{encoded}"
 
 
-def standard_level(prefix: str) -> str:
-    p = prefix.replace("_", "").upper()
+def clean_prefix(prefix: str) -> str:
+    return re.sub(r"[._-]", "", prefix.upper())
+
+
+def standard_level(prefix: str | None) -> str:
+    if not prefix:
+        return "未识别"
+    p = clean_prefix(prefix)
     if p.startswith("GB"):
         return "国家标准"
-    return "行业标准"
+    if p.startswith("DB"):
+        return "地方标准"
+    if p.startswith("Q"):
+        return "企业标准"
+    if p.startswith("T") and not p.startswith(("TD", "TDT")):
+        return "团体标准"
+    if p.startswith(INDUSTRY_PREFIXES):
+        return "行业标准"
+    return "其他标准"
 
 
-def standard_nature(prefix: str) -> str:
-    p = prefix.replace("_", "").upper()
-    if p in {"GB", "GBT"}:
-        return "强制性" if p == "GB" else "推荐性"
+def standard_nature(prefix: str | None) -> str:
+    if not prefix:
+        return "未标注"
+    p = clean_prefix(prefix)
+    if p == "GB":
+        return "强制性"
+    if p == "GBT" or p.endswith("T"):
+        return "推荐性"
     if p.endswith("Z"):
         return "指导性技术文件"
-    return "推荐性"
+    if standard_level(prefix) == "团体标准":
+        return "推荐性"
+    return "未标注"
 
 
-def parse_standard(path: Path) -> dict | None:
-    stem = path.stem.strip().replace("  ", " ")
+def material_status(stem: str, has_number: bool) -> str:
+    rules = [
+        ("征求意见稿", "征求意见稿"),
+        ("征求意见", "征求意见稿"),
+        ("草案", "草案"),
+        ("送审稿", "送审稿"),
+        ("报批稿", "报批稿"),
+        ("试行", "试行"),
+        ("暂行", "暂行"),
+    ]
+    for keyword, label in rules:
+        if keyword in stem:
+            return label
+    return "编号标准" if has_number else "无编号资料"
+
+
+def format_standard_no(prefix: str, number: str, year: str) -> str:
+    p = clean_prefix(prefix)
+    replacements = {
+        "GBT": "GB/T", "CHT": "CH/T", "CHZ": "CH/Z", "DZT": "DZ/T", "TDT": "TD/T",
+        "LYT": "LY/T", "NYT": "NY/T", "CJJT": "CJJ/T", "HYT": "HY/T", "SLT": "SL/T",
+    }
+    if p in replacements:
+        official_prefix = replacements[p]
+    elif p.startswith("DB") and p.endswith("T"):
+        official_prefix = p[:-1] + "/T"
+    elif p.startswith("T") and len(p) > 1:
+        official_prefix = "T/" + p[1:]
+    elif p.startswith("Q") and len(p) > 1:
+        official_prefix = "Q/" + p[1:]
+    else:
+        official_prefix = prefix
+    return f"{official_prefix} {number}-{year}"
+
+
+def parse_standard(path: Path) -> dict:
+    stem = re.sub(r"\s+", " ", path.stem.strip())
     m = STANDARD_RE.match(stem)
-    if not m:
-        return None
-    prefix = m.group("prefix").replace("_", "")
-    title = m.group("title").strip()
-    replacements = {"GBT": "GB/T", "CHT": "CH/T", "CHZ": "CH/Z", "DZT": "DZ/T", "TDT": "TD/T", "LYT": "LY/T", "NYT": "NY/T", "CJJT": "CJJ/T"}
-    official_prefix = replacements.get(prefix, prefix)
-    std_no = f"{official_prefix} {m.group('number')}-{m.group('year')}"
     rel = path.relative_to(ROOT)
     parts = rel.parts
     system = parts[1] if len(parts) > 2 else "未分类"
     domain = " / ".join(parts[2:-1]) if len(parts) > 3 else "未分类"
+
+    if m:
+        prefix = m.group("prefix")
+        title = m.group("title").strip() or stem
+        std_no = format_standard_no(prefix, m.group("number"), m.group("year"))
+        year = m.group("year")
+        level = standard_level(prefix)
+        nature = standard_nature(prefix)
+        status = material_status(stem, True)
+    else:
+        prefix = None
+        title = stem
+        std_no = "—"
+        year_match = re.search(r"(?<!\d)(19|20)\d{2}(?!\d)", stem)
+        year = year_match.group(0) if year_match else ""
+        level = "未识别"
+        nature = "未标注"
+        status = material_status(stem, False)
+
     return {
         "标准号": std_no,
-        "标准名称": title or stem,
-        "标准层级": standard_level(prefix),
-        "标准性质": standard_nature(prefix),
+        "标准名称": title,
+        "标准层级": level,
+        "标准性质": nature,
+        "资料状态": status,
         "标准体系": system,
         "专业分类": domain or "未分类",
-        "年份": m.group("year"),
+        "年份": year,
         "文件名": path.name,
         "链接": repo_blob_url(rel),
         "下载": repo_raw_url(rel),
@@ -151,9 +225,7 @@ def main():
             "相对路径": rel.as_posix(),
         })
         if source_type == "标准规范":
-            item = parse_standard(path)
-            if item:
-                standards.append(item)
+            standards.append(parse_standard(path))
 
     with OUT_CSV.open("w", encoding="utf-8-sig", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=["资料类型", "一级分类", "二级分类", "三级分类", "文件名", "扩展名", "相对路径"])

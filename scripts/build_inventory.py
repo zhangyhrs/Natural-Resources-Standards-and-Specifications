@@ -6,6 +6,8 @@ import re
 from pathlib import Path
 from urllib.parse import quote
 
+from professional_taxonomy import detect_region, keyword_tags, professional_domain
+
 ROOT = Path(__file__).resolve().parents[1]
 TARGET_DIRS = [ROOT / "标准规范", ROOT / "法律法规"]
 OUT_CSV = ROOT / "catalog_auto.csv"
@@ -16,17 +18,10 @@ LAWS_JSON = DOCS_DIR / "laws.json"
 LEGAL_INDEX = ROOT / "法律法规索引.md"
 
 ALLOWED_SUFFIXES = {".pdf", ".doc", ".docx", ".xls", ".xlsx", ".txt", ".md"}
-STANDARD_RE = re.compile(
-    r"^(?P<prefix>[A-Z][A-Z0-9._-]*)\s*(?P<number>\d+(?:\.\d+)?)\s*[-—]\s*(?P<year>\d{4})\s*(?P<title>.*)$"
-)
-LEGAL_ITEM_RE = re.compile(
-    r"^- \[(?P<title>.+?)\]\((?P<path>.+?)\)\s*·\s*`(?P<date>[^`]*)`\s*·\s*`(?P<issuer>[^`]*)`\s*·\s*`(?P<tag>[^`]*)`"
-)
+STANDARD_RE = re.compile(r"^(?P<prefix>[A-Z][A-Z0-9._-]*)\s*(?P<number>\d+(?:\.\d+)?)\s*[-—]\s*(?P<year>\d{4})\s*(?P<title>.*)$")
+LEGAL_ITEM_RE = re.compile(r"^- \[(?P<title>.+?)\]\((?P<path>.+?)\)\s*·\s*`(?P<date>[^`]*)`\s*·\s*`(?P<issuer>[^`]*)`\s*·\s*`(?P<tag>[^`]*)`")
 SUMMARY_RE = re.compile(r"<summary><b>(?P<level>\d{2}\s+[^<]+)</b></summary>")
-
-INDUSTRY_PREFIXES = (
-    "CH", "DZ", "TD", "LY", "NY", "HY", "SL", "CJJ", "JGJ", "JTG", "NB", "HJ", "MH", "WS", "AQ", "JC", "DBJ"
-)
+INDUSTRY_PREFIXES = ("CH", "DZ", "TD", "LY", "NY", "HY", "SL", "CJJ", "JGJ", "JTG", "NB", "HJ", "MH", "WS", "AQ", "JC", "DBJ")
 
 
 def iter_files():
@@ -39,13 +34,8 @@ def iter_files():
 
 
 def classify(path: Path):
-    rel = path.relative_to(ROOT)
-    parts = rel.parts
-    source_type = parts[0]
-    level1 = parts[1] if len(parts) > 2 else ""
-    level2 = parts[2] if len(parts) > 3 else ""
-    level3 = parts[3] if len(parts) > 4 else ""
-    return source_type, level1, level2, level3, rel
+    rel = path.relative_to(ROOT); parts = rel.parts; source_type = parts[0]
+    return source_type, parts[1] if len(parts)>2 else "", parts[2] if len(parts)>3 else "", parts[3] if len(parts)>4 else "", rel
 
 
 def github_link(rel: Path) -> str:
@@ -67,207 +57,103 @@ def clean_prefix(prefix: str) -> str:
 
 
 def standard_level(prefix: str | None) -> str:
-    if not prefix:
-        return "其他资料"
+    if not prefix: return "其他资料"
     p = clean_prefix(prefix)
-    if p.startswith("GB"):
-        return "国家标准"
-    if p.startswith("DB"):
-        return "地方标准"
-    if p.startswith("Q"):
-        return "企业标准"
-    if p.startswith("T") and not p.startswith(("TD", "TDT")):
-        return "团体标准"
-    if p.startswith(INDUSTRY_PREFIXES):
-        return "行业标准"
+    if p.startswith("GB"): return "国家标准"
+    if p.startswith("DB"): return "地方标准"
+    if p.startswith("Q"): return "企业标准"
+    if p.startswith("T") and not p.startswith(("TD", "TDT")): return "团体标准"
+    if p.startswith(INDUSTRY_PREFIXES): return "行业标准"
     return "其他标准"
 
 
 def standard_nature(prefix: str | None) -> str:
-    if not prefix:
-        return "未标注"
+    if not prefix: return "未标注"
     p = clean_prefix(prefix)
-    if p == "GB":
-        return "强制性"
-    if p == "GBT" or p.endswith("T"):
-        return "推荐性"
-    if p.endswith("Z"):
-        return "指导性技术文件"
-    if standard_level(prefix) == "团体标准":
-        return "推荐性"
+    if p == "GB": return "强制性"
+    if p == "GBT" or p.endswith("T"): return "推荐性"
+    if p.endswith("Z"): return "指导性技术文件"
+    if standard_level(prefix) == "团体标准": return "推荐性"
     return "未标注"
 
 
 def material_status(stem: str, has_number: bool) -> str:
-    rules = [
-        ("征求意见稿", "征求意见稿"),
-        ("征求意见", "征求意见稿"),
-        ("草案", "草案"),
-        ("送审稿", "送审稿"),
-        ("报批稿", "报批稿"),
-        ("试行", "试行"),
-        ("暂行", "暂行"),
-    ]
-    for keyword, label in rules:
-        if keyword in stem:
-            return label
+    rules=(("征求意见稿","征求意见稿"),("征求意见","征求意见稿"),("草案","草案"),("送审稿","送审稿"),("报批稿","报批稿"),("试行","试行"),("暂行","暂行"))
+    for keyword,label in rules:
+        if keyword in stem: return label
     return "编号标准" if has_number else "无编号资料"
 
 
 def format_standard_no(prefix: str, number: str, year: str) -> str:
-    p = clean_prefix(prefix)
-    replacements = {
-        "GBT": "GB/T", "CHT": "CH/T", "CHZ": "CH/Z", "DZT": "DZ/T", "TDT": "TD/T",
-        "LYT": "LY/T", "NYT": "NY/T", "CJJT": "CJJ/T", "HYT": "HY/T", "SLT": "SL/T",
-    }
-    if p in replacements:
-        official_prefix = replacements[p]
-    elif p.startswith("DB") and p.endswith("T"):
-        official_prefix = p[:-1] + "/T"
-    elif p.startswith("T") and len(p) > 1:
-        official_prefix = "T/" + p[1:]
-    elif p.startswith("Q") and len(p) > 1:
-        official_prefix = "Q/" + p[1:]
-    else:
-        official_prefix = prefix
+    p=clean_prefix(prefix)
+    replacements={"GBT":"GB/T","CHT":"CH/T","CHZ":"CH/Z","DZT":"DZ/T","TDT":"TD/T","LYT":"LY/T","NYT":"NY/T","CJJT":"CJJ/T","HYT":"HY/T","SLT":"SL/T"}
+    if p in replacements: official_prefix=replacements[p]
+    elif p.startswith("DB") and p.endswith("T"): official_prefix=p[:-1]+"/T"
+    elif p.startswith("T") and len(p)>1: official_prefix="T/"+p[1:]
+    elif p.startswith("Q") and len(p)>1: official_prefix="Q/"+p[1:]
+    else: official_prefix=prefix
     return f"{official_prefix} {number}-{year}"
 
 
 def parse_standard(path: Path) -> dict:
-    stem = re.sub(r"\s+", " ", path.stem.strip())
-    m = STANDARD_RE.match(stem)
-    rel = path.relative_to(ROOT)
-    parts = rel.parts
-    system = parts[1] if len(parts) > 2 else "未分类"
-    domain = " / ".join(parts[2:-1]) if len(parts) > 3 else "未分类"
-
+    stem=re.sub(r"\s+"," ",path.stem.strip()); m=STANDARD_RE.match(stem); rel=path.relative_to(ROOT); parts=rel.parts
+    system=parts[1] if len(parts)>2 else "未分类"
     if m:
-        prefix = m.group("prefix")
-        title = m.group("title").strip() or stem
-        std_no = format_standard_no(prefix, m.group("number"), m.group("year"))
-        year = m.group("year")
-        level = standard_level(prefix)
-        nature = standard_nature(prefix)
-        status = material_status(stem, True)
+        prefix=m.group("prefix"); title=m.group("title").strip() or stem
+        std_no=format_standard_no(prefix,m.group("number"),m.group("year")); year=m.group("year")
+        level=standard_level(prefix); nature=standard_nature(prefix); status=material_status(stem,True)
     else:
-        prefix = None
-        title = stem
-        std_no = "—"
-        year_match = re.search(r"(?<!\d)(19|20)\d{2}(?!\d)", stem)
-        year = year_match.group(0) if year_match else ""
-        level = "其他资料"
-        nature = "未标注"
-        status = material_status(stem, False)
-
+        prefix=None; title=stem; std_no="—"; ym=re.search(r"(?<!\d)(19|20)\d{2}(?!\d)",stem); year=ym.group(0) if ym else ""
+        level="其他资料"; nature="未标注"; status=material_status(stem,False)
     return {
-        "标准号": std_no,
-        "标准名称": title,
-        "标准层级": level,
-        "标准性质": nature,
-        "资料状态": status,
-        "标准体系": system,
-        "专业分类": domain or "未分类",
-        "年份": year,
-        "文件名": path.name,
-        "链接": repo_blob_url(rel),
-        "下载": repo_raw_url(rel),
+        "标准号":std_no,"标准名称":title,"标准层级":level,"标准性质":nature,"资料状态":status,
+        "标准体系":system,"专业分类":professional_domain(rel,title,system),"地区":detect_region(rel,prefix),
+        "关键词":keyword_tags(rel,title),"年份":year,"文件名":path.name,"链接":repo_blob_url(rel),"下载":repo_raw_url(rel)
     }
 
 
 def build_laws() -> list[dict]:
-    if not LEGAL_INDEX.exists():
-        return []
-    laws = []
-    current_level = "未分类"
-    current_domain = "未分类"
+    if not LEGAL_INDEX.exists(): return []
+    laws=[]; current_level="未分类"; current_domain="未分类"
     for raw in LEGAL_INDEX.read_text(encoding="utf-8").splitlines():
-        line = raw.strip()
-        m = SUMMARY_RE.search(line)
+        line=raw.strip(); m=SUMMARY_RE.search(line)
         if m:
-            current_level = m.group("level").strip()
-            current_domain = "未分类"
-            continue
+            current_level=m.group("level").strip(); current_domain="未分类"; continue
         if line.startswith("### "):
-            current_domain = line[4:].strip()
-            continue
-        m = LEGAL_ITEM_RE.match(line)
-        if not m:
-            continue
-        path_text = m.group("path").replace("%20", " ")
-        if path_text.startswith("./"):
-            path_text = path_text[2:]
-        rel = Path(path_text)
-        laws.append({
-            "名称": m.group("title").strip(),
-            "效力层级": current_level,
-            "业务领域或地区": current_domain,
-            "日期": m.group("date").strip(),
-            "发布机关": m.group("issuer").strip(),
-            "标签": m.group("tag").strip(),
-            "链接": repo_blob_url(rel),
-            "下载": repo_raw_url(rel),
-        })
+            current_domain=line[4:].strip(); continue
+        m=LEGAL_ITEM_RE.match(line)
+        if not m: continue
+        path_text=m.group("path").replace("%20"," ")
+        if path_text.startswith("./"): path_text=path_text[2:]
+        rel=Path(path_text)
+        laws.append({"名称":m.group("title").strip(),"效力层级":current_level,"业务领域或地区":current_domain,"日期":m.group("date").strip(),"发布机关":m.group("issuer").strip(),"标签":m.group("tag").strip(),"链接":repo_blob_url(rel),"下载":repo_raw_url(rel)})
     return laws
 
 
 def main():
-    rows = []
-    standards = []
+    rows=[]; standards=[]
     for path in iter_files():
-        source_type, level1, level2, level3, rel = classify(path)
-        rows.append({
-            "资料类型": source_type,
-            "一级分类": level1,
-            "二级分类": level2,
-            "三级分类": level3,
-            "文件名": path.name,
-            "扩展名": path.suffix.lower(),
-            "相对路径": rel.as_posix(),
-        })
-        if source_type == "标准规范":
-            standards.append(parse_standard(path))
-
-    with OUT_CSV.open("w", encoding="utf-8-sig", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=["资料类型", "一级分类", "二级分类", "三级分类", "文件名", "扩展名", "相对路径"])
-        writer.writeheader()
-        writer.writerows(rows)
-
-    groups: dict[str, list[dict]] = {}
-    for row in rows:
-        groups.setdefault(row["资料类型"], []).append(row)
-
-    lines = [
-        "# 📦 自动文件清单",
-        "",
-        "> 本文件由 `scripts/build_inventory.py` 自动生成，仅反映仓库当前文件结构，不替代人工维护的标准目录和法律法规目录。",
-        "",
-        f"当前共扫描到 **{len(rows)}** 个资料文件。",
-        "",
-    ]
-
-    for source_type in ["标准规范", "法律法规"]:
-        items = groups.get(source_type, [])
-        lines += [f"## {source_type}", ""]
-        if not items:
-            lines += ["暂无文件。", ""]
-            continue
-        by_level1: dict[str, list[dict]] = {}
-        for row in items:
-            by_level1.setdefault(row["一级分类"] or "未分类", []).append(row)
-        for level1, level_items in sorted(by_level1.items()):
-            lines += [f"### {level1}", ""]
-            for row in level_items:
-                rel = Path(row["相对路径"])
-                lines.append(f"- [{row['文件名']}]({github_link(rel)})")
+        source_type,level1,level2,level3,rel=classify(path)
+        rows.append({"资料类型":source_type,"一级分类":level1,"二级分类":level2,"三级分类":level3,"文件名":path.name,"扩展名":path.suffix.lower(),"相对路径":rel.as_posix()})
+        if source_type=="标准规范": standards.append(parse_standard(path))
+    with OUT_CSV.open("w",encoding="utf-8-sig",newline="") as f:
+        writer=csv.DictWriter(f,fieldnames=["资料类型","一级分类","二级分类","三级分类","文件名","扩展名","相对路径"]); writer.writeheader(); writer.writerows(rows)
+    groups={}
+    for row in rows: groups.setdefault(row["资料类型"],[]).append(row)
+    lines=["# 📦 自动文件清单","","> 本文件由 `scripts/build_inventory.py` 自动生成，仅反映仓库当前文件结构，不替代人工维护的标准目录和法律法规目录。","",f"当前共扫描到 **{len(rows)}** 个资料文件。",""]
+    for source_type in ["标准规范","法律法规"]:
+        items=groups.get(source_type,[]); lines += [f"## {source_type}",""]
+        if not items: lines += ["暂无文件。",""]; continue
+        by_level1={}
+        for row in items: by_level1.setdefault(row["一级分类"] or "未分类",[]).append(row)
+        for level1,level_items in sorted(by_level1.items()):
+            lines += [f"### {level1}",""]
+            for row in level_items: lines.append(f"- [{row['文件名']}]({github_link(Path(row['相对路径']))})")
             lines.append("")
-
-    OUT_MD.write_text("\n".join(lines), encoding="utf-8")
-    DOCS_DIR.mkdir(exist_ok=True)
-    STANDARDS_JSON.write_text(json.dumps(standards, ensure_ascii=False, indent=2), encoding="utf-8")
-    laws = build_laws()
-    LAWS_JSON.write_text(json.dumps(laws, ensure_ascii=False, indent=2), encoding="utf-8")
+    OUT_MD.write_text("\n".join(lines),encoding="utf-8")
+    DOCS_DIR.mkdir(exist_ok=True); STANDARDS_JSON.write_text(json.dumps(standards,ensure_ascii=False,indent=2),encoding="utf-8")
+    laws=build_laws(); LAWS_JSON.write_text(json.dumps(laws,ensure_ascii=False,indent=2),encoding="utf-8")
     print(f"Generated {OUT_CSV.name}, {OUT_MD.name}, docs/standards.json and docs/laws.json: {len(rows)} files / {len(standards)} standards / {len(laws)} laws")
 
 
-if __name__ == "__main__":
-    main()
+if __name__ == "__main__": main()

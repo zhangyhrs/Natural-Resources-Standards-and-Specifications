@@ -36,9 +36,20 @@
 
 仓库提供两个独立检索页面，可直接输入名称、标准号或关键词，也可通过分类按钮组合筛选。
 
-**技术标准检索**支持按标准层级、标准性质、标准体系、专业分类等条件筛选，并可直接下载已收录文档。除国家标准和行业标准外，地方标准、团体标准、企业标准、无编号资料及征求意见稿、试行稿等资料也可分类管理。
+| 检索页面 | 主要筛选条件 | 在线入口 |
+|---|---|---|
+| **🔎 技术标准检索** | 标准层级、标准性质、资料状态、标准体系、专业分类 | **[进入技术标准检索 →](https://zhangyhrs.github.io/Natural-Resources-Standards-and-Specifications/)** |
+| **⚖️ 法律法规检索** | 法规名称、法律效力层级、业务领域或地区、发布机关 | **[进入法律法规检索 →](https://zhangyhrs.github.io/Natural-Resources-Standards-and-Specifications/laws.html)** |
 
-**法律法规检索**支持按法规名称、法律效力层级、业务领域或地区、发布机关等条件筛选，并可直接下载对应文件。两个检索页面保持统一风格，可相互切换。
+**技术标准检索**支持国家标准、行业标准、地方标准、团体标准、企业标准及其他资料统一检索，并可直接下载已收录文档。对于无编号资料、征求意见稿、草案、试行稿等，通过“资料状态”单独区分。
+
+**法律法规检索**按照法律效力层级、业务领域或地区、发布机关等条件进行筛选，并可直接下载对应文件。两个检索页面保持统一风格，可相互切换。
+
+<p align="center">
+  <a href="https://zhangyhrs.github.io/Natural-Resources-Standards-and-Specifications/"><b>🔎 打开技术标准检索页面</b></a>
+  &nbsp;&nbsp;|&nbsp;&nbsp;
+  <a href="https://zhangyhrs.github.io/Natural-Resources-Standards-and-Specifications/laws.html"><b>⚖️ 打开法律法规检索页面</b></a>
+</p>
 
 ## 🗂️ 标准分类体系
 

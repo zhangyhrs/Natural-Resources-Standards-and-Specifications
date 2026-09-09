@@ -1,0 +1,95 @@
+name: 自动整理资料
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 运行模式
+        required: true
+        default: 正式整理
+        type: choice
+        options:
+          - 正式整理
+          - 仅预览
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: organize-documents
+  cancel-in-progress: false
+
+jobs:
+  organize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Organize uploaded documents
+        shell: bash
+        run: |
+          if [ "${{ inputs.mode }}" = "仅预览" ]; then
+            python scripts/organize_documents.py --dry-run
+          else
+            python scripts/organize_documents.py
+          fi
+
+      - name: Rebuild inventory and search data
+        if: ${{ inputs.mode == '正式整理' }}
+        run: python scripts/build_inventory.py
+
+      - name: Commit organized files and refreshed search data
+        if: ${{ inputs.mode == '正式整理' }}
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "自动整理待整理资料并更新检索数据"
+            git push
+          fi
+
+      - name: Upload preview report
+        if: ${{ inputs.mode == '仅预览' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: 自动整理预览报告
+          path: 整理报告/*_预览.md
+          if-no-files-found: error
+
+      - name: Configure Pages
+        if: ${{ inputs.mode == '正式整理' }}
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload Pages artifact
+        if: ${{ inputs.mode == '正式整理' }}
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+  deploy:
+    if: ${{ inputs.mode == '正式整理' }}
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: organize
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

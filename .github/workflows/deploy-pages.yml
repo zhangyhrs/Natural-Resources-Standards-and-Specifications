@@ -1,4 +1,4 @@
-name: Deploy standards search page
+name: Deploy searchable library pages
 
 on:
   push:
@@ -6,6 +6,8 @@ on:
     paths:
       - 'docs/**'
       - '标准规范/**'
+      - '法律法规/**'
+      - '法律法规索引.md'
       - 'scripts/build_inventory.py'
       - '.github/workflows/deploy-pages.yml'
   workflow_dispatch:
@@ -31,7 +33,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Build standards data
+      - name: Build search data
         run: python scripts/build_inventory.py
 
       - name: Configure Pages

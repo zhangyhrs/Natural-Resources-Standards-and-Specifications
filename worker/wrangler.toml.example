@@ -1,0 +1,12 @@
+name = "natural-resources-download-gate"
+main = "src/index.js"
+compatibility_date = "2026-09-10"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "natural-resources-downloads"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+# Secrets must NOT be committed. Set them with Wrangler or Cloudflare Dashboard:
+# VISITOR_HASH_PEPPER = long random secret
+# ADMIN_TOKEN = long random secret

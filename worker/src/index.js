@@ -1,15 +1,16 @@
 const LIMIT = 5;
 const WINDOW_MS = 24 * 60 * 60 * 1000;
-const ALLOWED_ORIGINS = new Set([
-  'https://zhangyhrs.github.io',
-  'http://localhost:8000',
-  'http://127.0.0.1:8000'
-]);
+const LOG_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+
+const ALLOWED_ORIGINS = [
+  'https://zhangyhrs.github.io'
+];
 
 function corsHeaders(request) {
   const origin = request.headers.get('Origin') || '';
+  const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
   return {
-    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : 'https://zhangyhrs.github.io',
+    'Access-Control-Allow-Origin': allowed,
     'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type,Authorization',
     'Access-Control-Max-Age': '86400',
@@ -21,27 +22,36 @@ function corsHeaders(request) {
 function json(request, body, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'content-type': 'application/json; charset=utf-8', ...corsHeaders(request) }
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      ...corsHeaders(request)
+    }
   });
 }
 
 async function sha256Hex(text) {
   const data = new TextEncoder().encode(text);
   const digest = await crypto.subtle.digest('SHA-256', data);
-  return [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
+  return [...new Uint8Array(digest)]
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 async function visitorHash(request, env) {
-  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-  return sha256Hex(`${env.VISITOR_HASH_PEPPER}:${ip}`);
+  const ip =
+    request.headers.get('CF-Connecting-IP') ||
+    request.headers.get('X-Forwarded-For') ||
+    'unknown';
+  return sha256Hex(`${ip}|${env.VISITOR_SALT}`);
 }
 
 function validDownloadUrl(raw) {
   try {
     const u = new URL(raw);
     if (u.protocol !== 'https:') return false;
-    if (u.hostname !== 'raw.githubusercontent.com') return false;
-    return u.pathname.startsWith('/zhangyhrs/Natural-Resources-Standards-and-Specifications/main/');
+    if (!['raw.githubusercontent.com', 'github.com'].includes(u.hostname)) return false;
+    const path = decodeURIComponent(u.pathname).toLowerCase();
+    return path.includes('zhangyhrs') && path.includes('natural-resources-standards-and-specifications');
   } catch {
     return false;
   }
@@ -49,25 +59,63 @@ function validDownloadUrl(raw) {
 
 async function quota(env, hash, now) {
   const since = now - WINDOW_MS;
-  const result = await env.DB.prepare(
-    `SELECT COUNT(*) AS used, MIN(downloaded_at) AS earliest
-       FROM download_logs
-      WHERE visitor_hash = ?1 AND downloaded_at >= ?2`
-  ).bind(hash, since).first();
+  const result = await env.DB.prepare(`
+    SELECT COUNT(*) AS used, MIN(created_at) AS earliest
+    FROM download_logs
+    WHERE visitor_hash = ?1 AND created_at >= ?2
+  `).bind(hash, since).first();
+
   const used = Number(result?.used || 0);
   const earliest = result?.earliest == null ? null : Number(result.earliest);
   return {
+    ok: true,
     limit: LIMIT,
     used,
     remaining: Math.max(0, LIMIT - used),
-    resetAt: earliest == null ? null : new Date(earliest + WINDOW_MS).toISOString()
+    reset_at: earliest == null ? null : earliest + WINDOW_MS
   };
 }
 
 async function handleStatus(request, env) {
   const hash = await visitorHash(request, env);
-  const q = await quota(env, hash, Date.now());
-  return json(request, q);
+  return json(request, await quota(env, hash, Date.now()));
+}
+
+async function handleStats(request, env) {
+  const url = new URL(request.url);
+  const fileType = (url.searchParams.get('file_type') || '').trim();
+  const allowedTypes = ['技术标准', '法律法规'];
+  if (fileType && !allowedTypes.includes(fileType)) {
+    return json(request, { ok: false, message: '资料类型无效' }, 400);
+  }
+
+  let result;
+  if (fileType) {
+    result = await env.DB.prepare(`
+      SELECT file_type, file_name, COUNT(*) AS downloads
+      FROM download_logs
+      WHERE file_type = ?1
+      GROUP BY file_type, file_name
+      ORDER BY downloads DESC, file_name ASC
+    `).bind(fileType).all();
+  } else {
+    result = await env.DB.prepare(`
+      SELECT file_type, file_name, COUNT(*) AS downloads
+      FROM download_logs
+      GROUP BY file_type, file_name
+      ORDER BY downloads DESC, file_type ASC, file_name ASC
+    `).all();
+  }
+
+  return json(request, {
+    ok: true,
+    source: 'D1',
+    items: (result.results || []).map(r => ({
+      file_type: r.file_type,
+      file_name: r.file_name,
+      downloads: Number(r.downloads || 0)
+    }))
+  });
 }
 
 async function handleDownload(request, env) {
@@ -75,81 +123,129 @@ async function handleDownload(request, env) {
   try {
     body = await request.json();
   } catch {
-    return json(request, { error: '请求格式错误' }, 400);
+    return json(request, { ok: false, message: '请求参数错误' }, 400);
   }
 
-  const category = body?.type === 'law' ? 'law' : body?.type === 'standard' ? 'standard' : null;
-  const name = String(body?.name || '').trim().slice(0, 300);
-  const url = String(body?.url || '').trim();
-  if (!category || !name || !validDownloadUrl(url)) {
-    return json(request, { error: '下载参数无效' }, 400);
+  const fileUrl = String(body?.url || '').trim();
+  const fileName = String(body?.file_name || '').trim().slice(0, 300);
+  const fileType = String(body?.file_type || '').trim();
+
+  if (!fileUrl || !fileName || !['技术标准', '法律法规'].includes(fileType)) {
+    return json(request, { ok: false, message: '缺少或存在无效下载参数' }, 400);
+  }
+  if (!validDownloadUrl(fileUrl)) {
+    return json(request, { ok: false, message: '下载地址不在允许范围内' }, 403);
   }
 
   const now = Date.now();
+  const since = now - WINDOW_MS;
   const hash = await visitorHash(request, env);
-  const q = await quota(env, hash, now);
-  if (q.remaining <= 0) {
+  const fileUrlHash = await sha256Hex(fileUrl);
+
+  try {
+    await env.DB.prepare('DELETE FROM download_logs WHERE created_at < ?1')
+      .bind(now - LOG_RETENTION_MS)
+      .run();
+  } catch {}
+
+  const inserted = await env.DB.prepare(`
+    INSERT INTO download_logs
+      (visitor_hash, file_type, file_name, file_url_hash, created_at)
+    SELECT ?1, ?2, ?3, ?4, ?5
+    WHERE (
+      SELECT COUNT(*)
+      FROM download_logs
+      WHERE visitor_hash = ?6 AND created_at >= ?7
+    ) < ?8
+  `).bind(
+    hash,
+    fileType,
+    fileName,
+    fileUrlHash,
+    now,
+    hash,
+    since,
+    LIMIT
+  ).run();
+
+  const changes = Number(inserted?.meta?.changes || 0);
+  if (changes < 1) {
+    const q = await quota(env, hash, now);
     return json(request, {
+      ...q,
+      ok: false,
       allowed: false,
-      message: '今天下载次数已达上限，请稍后再试。',
-      ...q
+      limited: true,
+      message: '今天下载次数已达上限，请稍后再试。'
     }, 429);
   }
 
-  const fileHash = await sha256Hex(url);
-  await env.DB.prepare(
-    `INSERT INTO download_logs
-       (visitor_hash, downloaded_at, category, item_name, file_hash)
-     VALUES (?1, ?2, ?3, ?4, ?5)`
-  ).bind(hash, now, category, name, fileHash).run();
-
-  const next = await quota(env, hash, now);
+  const q = await quota(env, hash, now);
   return json(request, {
+    ...q,
+    ok: true,
     allowed: true,
-    downloadUrl: url,
-    ...next
+    download_url: fileUrl,
+    message: '允许下载'
   });
 }
 
 async function handleAdminLogs(request, env) {
   const auth = request.headers.get('Authorization') || '';
   if (!env.ADMIN_TOKEN || auth !== `Bearer ${env.ADMIN_TOKEN}`) {
-    return json(request, { error: 'Unauthorized' }, 401);
+    return json(request, { ok: false, message: 'Unauthorized' }, 401);
   }
 
-  const u = new URL(request.url);
-  const limit = Math.min(500, Math.max(1, Number(u.searchParams.get('limit') || 100)));
-  const rows = await env.DB.prepare(
-    `SELECT id, visitor_hash, downloaded_at, category, item_name, file_hash
-       FROM download_logs
-      ORDER BY downloaded_at DESC
-      LIMIT ?1`
-  ).bind(limit).all();
+  const url = new URL(request.url);
+  let limit = Number(url.searchParams.get('limit') || 100);
+  if (!Number.isFinite(limit)) limit = 100;
+  limit = Math.min(500, Math.max(1, limit));
+
+  const rows = await env.DB.prepare(`
+    SELECT id, visitor_hash, file_type, file_name, file_url_hash, created_at
+    FROM download_logs
+    ORDER BY created_at DESC
+    LIMIT ?1
+  `).bind(limit).all();
 
   return json(request, {
-    items: (rows.results || []).map(r => ({
-      id: r.id,
-      visitor: String(r.visitor_hash).slice(0, 16),
-      downloadedAt: new Date(Number(r.downloaded_at)).toISOString(),
-      type: r.category,
-      name: r.item_name,
-      fileHash: r.file_hash
-    }))
+    ok: true,
+    count: rows.results?.length || 0,
+    logs: rows.results || []
   });
 }
 
 export default {
   async fetch(request, env) {
-    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders(request) });
-    const u = new URL(request.url);
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: corsHeaders(request) });
+    }
+
     try {
-      if (request.method === 'GET' && u.pathname === '/status') return handleStatus(request, env);
-      if (request.method === 'POST' && u.pathname === '/download') return handleDownload(request, env);
-      if (request.method === 'GET' && u.pathname === '/admin/logs') return handleAdminLogs(request, env);
-      return json(request, { error: 'Not found' }, 404);
+      if (!env.DB) return json(request, { ok: false, message: 'D1 数据库未绑定' }, 500);
+      if (!env.VISITOR_SALT) return json(request, { ok: false, message: 'VISITOR_SALT 未配置' }, 500);
+
+      const url = new URL(request.url);
+
+      if (request.method === 'GET' && url.pathname === '/') {
+        return json(request, {
+          ok: true,
+          service: '自然资源标准规范与法律法规库下载网关',
+          version: '1.1',
+          limit: LIMIT,
+          window_hours: 24,
+          stats_source: 'D1'
+        });
+      }
+      if (request.method === 'GET' && url.pathname === '/status') return handleStatus(request, env);
+      if (request.method === 'GET' && url.pathname === '/stats') return handleStats(request, env);
+      if (request.method === 'POST' && url.pathname === '/download') return handleDownload(request, env);
+      if (request.method === 'GET' && url.pathname === '/admin/logs') return handleAdminLogs(request, env);
+
+      return json(request, { ok: false, message: 'Not Found' }, 404);
     } catch (err) {
       console.error(err);
-      return json(request, { error: '服务暂时不可用，请稍后再试。' }, 500);
+      return json(request, { ok: false, message: '服务器处理失败' }, 500);
     }
   }
 };
